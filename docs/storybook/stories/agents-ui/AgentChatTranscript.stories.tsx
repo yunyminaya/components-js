@@ -6,7 +6,6 @@ import { AgentChatTranscript, AgentChatTranscriptProps } from '@livekit/agents-u
 
 export default {
   component: AgentChatTranscript,
-  decorators: [AgentSessionProvider],
   render: (args: AgentChatTranscriptProps) => {
     return (
       <div className="w-96 h-dvh overflow-hidden mx-auto flex flex-col">
@@ -16,6 +15,7 @@ export default {
   },
   args: {
     agentState: 'thinking',
+    autoScroll: true,
     messages: [
       {
         id: '1',
@@ -51,6 +51,7 @@ export default {
     ],
   },
   argTypes: {
+    autoScroll: { control: 'boolean' },
     agentState: {
       control: 'radio',
       options: [
@@ -71,10 +72,12 @@ export default {
 };
 
 export const Default: StoryObj<AgentChatTranscriptProps> = {
+  decorators: [AgentSessionProvider],
   args: {},
 };
 
 export const InjectMessages: StoryObj<AgentChatTranscriptProps> = {
+  decorators: [AgentSessionProvider],
   args: {
     messages: [],
   },
@@ -104,7 +107,11 @@ export const InjectMessages: StoryObj<AgentChatTranscriptProps> = {
     return (
       <div className="w-96 h-dvh overflow-hidden mx-auto flex flex-col border">
         <div className="flex-1 overflow-hidden">
-          <AgentChatTranscript {...args} messages={messages} className="**:data-[slot=message-scroller-content]:p-4"/>
+          <AgentChatTranscript
+            {...args}
+            messages={messages}
+            className="**:data-[slot=message-scroller-content]:p-4"
+          />
         </div>
         <div className="p-2 border-t flex justify-end end bg-accent">
           <button
@@ -112,9 +119,153 @@ export const InjectMessages: StoryObj<AgentChatTranscriptProps> = {
             onClick={addMessage}
             className="grid size-8 place-content-center text-sm rounded-md border bg-background hover:bg-accent"
           >
-            <div className='sr-only'>Add message</div>
+            <div className="sr-only">Add message</div>
             <SendHorizontal className="w-4 h-4" />
           </button>
+        </div>
+      </div>
+    );
+  },
+};
+
+type Messages = NonNullable<AgentChatTranscriptProps['messages']>;
+
+const initialMessages: Messages = Array.from({ length: 6 }, (_, index) => ({
+  id: `message-${index}`,
+  timestamp: index * 1000,
+  from: { isLocal: index % 2 === 0 } as Messages[number]['from'],
+  message:
+    index === 5
+      ? 'Latest reply: this message should be an anchor in both examples.'
+      : `Message ${index + 1}: Earlier conversation content makes this transcript scrollable. Both examples receive the same messages in the same order.`,
+}));
+
+// Uses local messages only: no session provider, microphone, or credentials.
+export const BooleanScrollAnchor: StoryObj<AgentChatTranscriptProps> = {
+  parameters: {
+    layout: 'padded',
+    docs: {
+      description: {
+        story:
+          'Boolean true and "any" anchor every message. With the default last-anchor position, both transcripts start at the latest message and follow new messages in the same way. False or omitting scrollAnchor leaves messages unanchored; "user" and "other" select by sender.',
+      },
+    },
+  },
+  render: () => {
+    const [messages, setMessages] = React.useState(initialMessages);
+    const appendMessage = () => {
+      setMessages((previous) => [
+        ...previous,
+        {
+          id: `message-${previous.length}`,
+          timestamp: previous.length * 1000,
+          from: { isLocal: previous.length % 2 === 0 } as Messages[number]['from'],
+          message: `New message ${previous.length + 1}: both transcripts should anchor here.`,
+        },
+      ]);
+    };
+
+    return (
+      <div className="mx-auto flex max-w-4xl flex-col gap-4">
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="rounded-md border px-3 py-2" onClick={appendMessage}>
+            Add message to both
+          </button>
+          <button
+            type="button"
+            className="rounded-md border px-3 py-2"
+            onClick={() => setMessages(initialMessages)}
+          >
+            Reset messages
+          </button>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {([true, 'any'] as const).map((mode) => (
+            <section key={String(mode)} className="min-w-0 rounded-lg border">
+              <h2 className="border-b p-3 font-mono text-sm">
+                {mode === true ? 'scrollAnchor={true}' : 'scrollAnchor="any"'}
+              </h2>
+              <div className="h-80 overflow-hidden">
+                <AgentChatTranscript
+                  messages={messages}
+                  scrollAnchor={mode}
+                  className="**:data-[slot=message-scroller-content]:p-4"
+                />
+              </div>
+            </section>
+          ))}
+        </div>
+      </div>
+    );
+  },
+};
+
+const scrollOnSendMessages: Messages = Array.from({ length: 12 }, (_, index) => ({
+  id: `history-${index}`,
+  timestamp: index * 1000,
+  from: { isLocal: index % 2 === 0 } as Messages[number]['from'],
+  message: `Message ${index + 1}: Earlier conversation content makes this transcript scrollable.`,
+}));
+
+// Uses local messages only: no session provider, microphone, or credentials.
+export const ScrollOnSend: StoryObj<AgentChatTranscriptProps> = {
+  args: {
+    agentState: undefined,
+  },
+  parameters: {
+    layout: 'padded',
+    docs: {
+      description: {
+        story:
+          'Scroll up, then add a user message: the transcript jumps to the end. Scroll up and add an agent message: it stays put. Turning off autoScroll turns this off too.',
+      },
+    },
+  },
+  render: (args: AgentChatTranscriptProps) => {
+    const [messages, setMessages] = React.useState(scrollOnSendMessages);
+    const addMessage = (isLocal: boolean) => {
+      setMessages((previous) => [
+        ...previous,
+        {
+          id: `added-${previous.length}`,
+          timestamp: previous.length * 1000,
+          from: { isLocal } as Messages[number]['from'],
+          message: isLocal ? 'New message from the user.' : 'New message from the agent.',
+        },
+      ]);
+    };
+
+    return (
+      <div className="mx-auto flex max-w-md flex-col gap-4">
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="rounded-md border px-3 py-2"
+            onClick={() => addMessage(true)}
+          >
+            Add user message
+          </button>
+          <button
+            type="button"
+            className="rounded-md border px-3 py-2"
+            onClick={() => addMessage(false)}
+          >
+            Add agent message
+          </button>
+          <button
+            type="button"
+            className="rounded-md border px-3 py-2"
+            onClick={() => setMessages(scrollOnSendMessages)}
+          >
+            Reset messages
+          </button>
+        </div>
+        <div className="h-80 overflow-hidden rounded-lg border">
+          <AgentChatTranscript
+            {...args}
+            messages={messages}
+            className="**:data-[slot=message-scroller-content]:p-4"
+          />
         </div>
       </div>
     );

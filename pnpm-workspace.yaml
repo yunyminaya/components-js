@@ -16,7 +16,9 @@ catalog:
   # Must match the exact @livekit/protocol version that livekit-client pins, so the
   # workspace and livekit-client share a single copy. Mismatched versions cause
   # structurally-incompatible protobuf types (e.g. TrackInfo) and break the build.
-  '@livekit/protocol': 1.51.0
+  # Renovate is configured not to bump this on its own (see renovate.json); update it
+  # by hand in the same change that bumps livekit-client.
+  '@livekit/protocol': 1.50.4
   eslint: ^10.0.0
   prettier: ^3.8.1
 
@@ -25,10 +27,18 @@ minimumReleaseAgeExclude:
   - '@livekit/*'
   - livekit-client
   - livekit-server-sdk
-  # Renovate security update: js-yaml@4.3.0 || 4.3.1
-  - js-yaml@4.3.0 || 4.3.1
+  # Renovate security update: js-yaml@4.3.0 || 4.3.1 || 4.3.2
+  - js-yaml@4.3.0 || 4.3.1 || 4.3.2
   # Renovate security update: postcss@8.5.23
   - postcss@8.5.23
+  # Renovate security update: vitest@4.1.11
+  - vitest@4.1.11
+  # Renovate security update: vite@8.1.6
+  - vite@8.1.6
+  # Renovate security update: storybook@10.6.2
+  - storybook@10.6.2
+  # Renovate security update: glob@14.0.2
+  - glob@14.0.2
 
 overrides:
   '@typescript-eslint/eslint-plugin': ^8.58.0

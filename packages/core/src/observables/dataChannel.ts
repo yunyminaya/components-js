@@ -6,8 +6,7 @@ import {
   type Room,
   type SendTextOptions,
 } from 'livekit-client';
-import type { Subscriber } from 'rxjs';
-import { Observable, filter, map } from 'rxjs';
+import { BehaviorSubject, filter, map } from 'rxjs';
 import { createChatObserver, createDataObserver } from './room';
 import { ReceivedChatMessage } from '../components/chat';
 
@@ -73,21 +72,21 @@ export function setupDataMessageHandler<T extends string>(
     }),
   );
 
-  let isSendingSubscriber: Subscriber<boolean>;
-  const isSendingObservable = new Observable<boolean>((subscriber) => {
-    isSendingSubscriber = subscriber;
-  });
+  const isSending$ = new BehaviorSubject<boolean>(false);
+  let pendingSends = 0;
 
   const send = async (payload: Uint8Array, options: DataPublishOptions = {}) => {
-    isSendingSubscriber.next(true);
+    pendingSends += 1;
+    isSending$.next(true);
     try {
       await sendMessage(room.localParticipant, payload, { topic: topics[0], ...options });
     } finally {
-      isSendingSubscriber.next(false);
+      pendingSends -= 1;
+      isSending$.next(pendingSends > 0);
     }
   };
 
-  return { messageObservable, isSendingObservable, send };
+  return { messageObservable, isSendingObservable: isSending$.asObservable(), send };
 }
 
 export function setupChatMessageHandler(room: Room) {
